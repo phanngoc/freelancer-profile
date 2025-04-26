@@ -35,9 +35,9 @@ const Sidebar: React.FC = () => {
   ];
 
   return (
-    <div className="w-64 bg-white h-screen shadow-sm border-r border-blue-100">
-      <div className="p-5">
-        <h2 className="text-xl font-bold text-blue-700 mb-6">Freelancer Profile</h2>
+    <div className="w-60 bg-white h-screen border-r border-blue-100">
+      <div className="p-6">
+        <h2 className="text-xl font-bold text-blue-700 mb-8">Freelancer Profile</h2>
         <nav>
           {navItems.map((item) => (
             <NavItem

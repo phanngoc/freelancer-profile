@@ -90,7 +90,7 @@ export default function CoverLetterForm() {
   return (
     <div className="flex flex-col md:flex-row gap-8">
       <div className="w-full md:w-1/2">
-        <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm p-6 border border-blue-100">
+        <form onSubmit={handleSubmit} className="bg-white rounded-lg border border-blue-100 p-6">
           <h2 className="text-2xl font-semibold text-blue-800 mb-6">Thông tin</h2>
           
           <div className="mb-6">
@@ -182,14 +182,14 @@ export default function CoverLetterForm() {
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-md hover:bg-blue-700 transition duration-200 flex items-center justify-center"
+              className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-md hover:bg-blue-700 active:bg-blue-800 transition-colors duration-150 flex items-center justify-center shadow-none border border-blue-600"
             >
               {loading ? <Spinner /> : 'Tạo Cover Letter'}
             </button>
             <button
               type="button"
               onClick={handleReset}
-              className="py-3 px-6 border border-blue-200 rounded-md hover:bg-blue-50 transition duration-200 text-blue-700"
+              className="py-3 px-6 border border-blue-200 rounded-md hover:bg-blue-100 active:bg-blue-200 transition-colors duration-150 text-blue-700 bg-white shadow-none"
             >
               Làm mới
             </button>
@@ -198,13 +198,13 @@ export default function CoverLetterForm() {
       </div>
       
       <div className="w-full md:w-1/2">
-        <div className="bg-white rounded-lg shadow-sm p-6 h-full border border-blue-100">
+        <div className="bg-white rounded-lg border border-blue-100 p-6 h-full">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-semibold text-blue-800">Cover Letter</h2>
             {coverLetter && (
               <button
                 onClick={handleCopy}
-                className="text-blue-600 hover:text-blue-800 flex items-center gap-2"
+                className="text-blue-600 hover:text-blue-800 active:text-blue-900 flex items-center gap-2 transition-colors"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
@@ -225,7 +225,7 @@ export default function CoverLetterForm() {
               coverLetter
             ) : (
               <p className="text-blue-500 italic">
-                Cover letter của bạn sẽ xuất hiện ở đây sau khi được tạo. Vui lòng nhập thông tin và nhấn "Tạo Cover Letter".
+                Cover letter của bạn sẽ xuất hiện ở đây sau khi được tạo. Vui lòng nhập thông tin và nhấn &quot;Tạo Cover Letter&quot;.
               </p>
             )}
           </div>
