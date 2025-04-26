@@ -65,7 +65,7 @@ class CoverLetterRead(CoverLetterBase):
 
 
 # Thiết lập kết nối database
-DATABASE_URL = "sqlite:///freelancer.db"
+DATABASE_URL = "sqlite:///data/freelancer.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 
 

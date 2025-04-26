@@ -1,7 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Spinner } from './Spinner';
+
+// API Base URL constant
+const API_BASE_URL = 'http://localhost:8000';
 
 interface FormData {
   job_description: string;
@@ -32,6 +35,70 @@ export default function CoverLetterForm() {
   const [coverLetter, setCoverLetter] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dataLoading, setDataLoading] = useState(true);
+
+  // Fetch skills and experience data from database
+  useEffect(() => {
+    async function fetchSkillsAndExperience() {
+      setDataLoading(true);
+      try {
+        // Fetch skills data
+        const skillsResponse = await fetch(`${API_BASE_URL}/skills`);
+        
+        // Fetch experience data
+        const experienceResponse = await fetch(`${API_BASE_URL}/experience`);
+        const experienceData = await experienceResponse.json();
+        console.log('Experience data:', experienceData);
+        if (skillsResponse.ok) {
+          const skillsData = await skillsResponse.json();
+          // Combine tech skills and soft skills for the form
+          const combinedSkills = [
+            skillsData.tech_skills || '', 
+            skillsData.soft_skills || ''
+          ].filter(Boolean).join('\n\n');
+          
+          setFormData(prev => ({
+            ...prev,
+            freelancer_skills: combinedSkills
+          }));
+        }
+        
+        if (experienceResponse.ok) {
+          const experienceData = await experienceResponse.json();
+          setFormData(prev => ({
+            ...prev,
+            experience_level: experienceData.work_experience ? 
+              extractExperienceLevel(experienceData.work_experience) : '',
+            // Optionally add project experience to additional info
+            additional_info: experienceData.projects ? 
+              `Dự án nổi bật:\n${experienceData.projects}` : prev.additional_info
+          }));
+        }
+      } catch (err) {
+        console.error('Lỗi khi tải dữ liệu từ database:', err);
+      } finally {
+        setDataLoading(false);
+      }
+    }
+    
+    // Helper function to extract experience level from text
+    function extractExperienceLevel(workExperience: string): string {
+      // Look for patterns like "X năm kinh nghiệm" or "X+ years" in the text
+      const yearPattern = /(\d+)[\+]?\s*(năm|years)/i;
+      const match = workExperience.match(yearPattern);
+      
+      if (match) {
+        return `${match[1]} năm kinh nghiệm`;
+      }
+      
+      // If no specific year count found, return first 100 chars as summary
+      return workExperience.length > 100 ? 
+        workExperience.substring(0, 100) + '...' : 
+        workExperience;
+    }
+
+    fetchSkillsAndExperience();
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -55,7 +122,7 @@ export default function CoverLetterForm() {
     setError(null);
     
     try {
-      const response = await fetch('http://localhost:8000/generate-cover-letter', {
+      const response = await fetch(`${API_BASE_URL}/generate-cover-letter`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -92,6 +159,13 @@ export default function CoverLetterForm() {
       <div className="w-full md:w-1/2">
         <form onSubmit={handleSubmit} className="bg-white rounded-lg border border-blue-100 p-6">
           <h2 className="text-2xl font-semibold text-blue-800 mb-6">Thông tin</h2>
+          
+          {dataLoading && (
+            <div className="mb-4 p-3 bg-blue-50 text-blue-600 rounded-md border border-blue-100 flex items-center">
+              <Spinner size="small" />
+              <span className="ml-2">Đang tải thông tin từ hồ sơ của bạn...</span>
+            </div>
+          )}
           
           <div className="mb-6">
             <label htmlFor="job_description" className="block text-blue-700 font-medium mb-2">
@@ -233,4 +307,4 @@ export default function CoverLetterForm() {
       </div>
     </div>
   );
-} 
+}

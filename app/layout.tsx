@@ -18,11 +18,13 @@ export default function RootLayout({
   return (
     <html lang="vi">
       <body className={inter.className}>
-        <div className="flex">
+        <div className="flex min-h-screen">
           <Sidebar />
-          <main className="flex-1">{children}</main>
+          <div className="flex-1 flex flex-col">
+            {children}
+          </div>
         </div>
       </body>
     </html>
   );
-} 
+}

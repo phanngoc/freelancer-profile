@@ -1,13 +1,14 @@
 import os
 import tempfile
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from typing import Optional, List
+from typing import Optional, List, Generic, TypeVar, Dict, Any
 import db
 import PyPDF2
 import re
+import json
 from openai import OpenAI
 from sqlmodel import Session, select
 from models import (
@@ -34,11 +35,27 @@ app = FastAPI(title="Freelancer Profile API")
 # Cấu hình CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Trong môi trường sản xuất, hãy giới hạn điều này
+    allow_origins=["*"],  # Trong experiencemôi trường sản xuất, hãy giới hạn điều này
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Generic type for API responses
+T = TypeVar('T')
+
+class ResponseModel(BaseModel, Generic[T]):
+    """Standard response model for all API endpoints"""
+    success: bool
+    message: str
+    data: Optional[T] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+class PaginatedResponseModel(ResponseModel[T]):
+    """Response model with pagination information"""
+    total: int
+    offset: int
+    limit: int
 
 class CoverLetterRequest(BaseModel):
     job_description: str
@@ -50,11 +67,15 @@ class CoverLetterRequest(BaseModel):
 class CoverLetterResponse(BaseModel):
     cover_letter: str
 
-@app.get("/")
+@app.get("/api")
 def read_root():
-    return {"message": "Welcome to Freelancer Profile API"}
+    return ResponseModel(
+        success=True,
+        message="Welcome to Freelancer Profile API",
+        data=None
+    )
 
-@app.post("/init-sample-data")
+@app.post("/api/init-sample-data", status_code=status.HTTP_201_CREATED)
 async def init_sample_data(session: Session = Depends(get_session)):
     """Tạo dữ liệu mẫu ban đầu cho ứng dụng"""
     try:
@@ -81,11 +102,18 @@ async def init_sample_data(session: Session = Depends(get_session)):
         
         session.commit()
         
-        return {"message": "Đã tạo dữ liệu mẫu thành công"}
+        return ResponseModel(
+            success=True,
+            message="Đã tạo dữ liệu mẫu thành công",
+            data=None
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi khi tạo dữ liệu mẫu: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail=f"Lỗi khi tạo dữ liệu mẫu: {str(e)}"
+        )
 
-@app.post("/generate-cover-letter", response_model=CoverLetterResponse)
+@app.post("/api/generate-cover-letter", status_code=status.HTTP_201_CREATED)
 async def generate_cover_letter(request: CoverLetterRequest):
     try:
         # Tạo prompt cho OpenAI
@@ -139,81 +167,170 @@ async def generate_cover_letter(request: CoverLetterRequest):
         cover_letter = response.choices[0].message.content.strip()
         
         # Lưu vào database
-        db.save_cover_letter(request.job_description, cover_letter)
+        saved_letter = db.save_cover_letter(request.job_description, cover_letter)
         
-        return CoverLetterResponse(cover_letter=cover_letter)
+        return ResponseModel(
+            success=True,
+            message="Tạo cover letter thành công",
+            data=CoverLetterResponse(cover_letter=cover_letter)
+        )
     
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi khi tạo cover letter: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi khi tạo cover letter: {str(e)}"
+        )
 
-@app.post("/skills", response_model=SkillsRead)
+@app.post("/api/skills", status_code=status.HTTP_201_CREATED, response_model=ResponseModel[SkillsRead])
 async def save_skills(skills: SkillsCreate, session: Session = Depends(get_session)):
     try:
         db_skills = Skills.model_validate(skills)
         session.add(db_skills)
         session.commit()
         session.refresh(db_skills)
-        return db_skills
+        return ResponseModel(
+            success=True,
+            message="Lưu kỹ năng thành công",
+            data=db_skills
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi khi lưu kỹ năng: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi khi lưu kỹ năng: {str(e)}"
+        )
 
-@app.get("/skills", response_model=SkillsRead)
+@app.get("/api/skills", response_model=ResponseModel[SkillsRead])
 async def get_skills(session: Session = Depends(get_session)):
     try:
         statement = select(Skills).order_by(Skills.id.desc()).limit(1)
         skills = session.exec(statement).first()
         if not skills:
             # Trả về 404 nếu không tìm thấy kết quả
-            raise HTTPException(status_code=404, detail="Không tìm thấy thông tin kỹ năng")
-        return skills
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Không tìm thấy thông tin kỹ năng"
+            )
+        return ResponseModel(
+            success=True,
+            message="Lấy thông tin kỹ năng thành công",
+            data=skills
+        )
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi khi lấy thông tin kỹ năng: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi khi lấy thông tin kỹ năng: {str(e)}"
+        )
 
-@app.post("/experience", response_model=ExperienceRead)
+@app.post("/api/experience", status_code=status.HTTP_201_CREATED, response_model=ResponseModel[ExperienceRead])
 async def save_experience(experience: ExperienceCreate, session: Session = Depends(get_session)):
     try:
         db_experience = Experience.model_validate(experience)
         session.add(db_experience)
         session.commit()
         session.refresh(db_experience)
-        return db_experience
+        return ResponseModel(
+            success=True,
+            message="Lưu kinh nghiệm thành công",
+            data=db_experience
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi khi lưu kinh nghiệm: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi khi lưu kinh nghiệm: {str(e)}"
+        )
 
-@app.get("/experience", response_model=ExperienceRead)
+@app.get("/api/experience", response_model=ResponseModel[ExperienceRead])
 async def get_experience(session: Session = Depends(get_session)):
     try:
         statement = select(Experience).order_by(Experience.id.desc()).limit(1)
         experience = session.exec(statement).first()
         if not experience:
             # Trả về 404 nếu không tìm thấy kết quả
-            raise HTTPException(status_code=404, detail="Không tìm thấy thông tin kinh nghiệm")
-        return experience
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Không tìm thấy thông tin kinh nghiệm"
+            )
+        
+        # If projects is stored as a JSON string, convert it back to a Python object
+        if experience.projects and experience.projects.startswith('['):
+            try:
+                # Create a copy of the experience object to avoid modifying the SQLModel directly
+                experience_dict = experience.model_dump()
+                experience_dict['projects'] = json.loads(experience.projects)
+                return ResponseModel(
+                    success=True,
+                    message="Lấy thông tin kinh nghiệm thành công",
+                    data=experience_dict
+                )
+            except json.JSONDecodeError:
+                # If JSON parsing fails, return the raw string
+                pass
+        
+        return ResponseModel(
+            success=True,
+            message="Lấy thông tin kinh nghiệm thành công",
+            data=experience
+        )
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi khi lấy thông tin kinh nghiệm: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi khi lấy thông tin kinh nghiệm: {str(e)}"
+        )
 
-@app.get("/cover-letters", response_model=List[CoverLetterRead])
+@app.get("/api/cover-letters", response_model=PaginatedResponseModel[List[CoverLetterRead]])
 async def get_cover_letters(
     session: Session = Depends(get_session),
     offset: int = 0,
     limit: int = 100
 ):
     try:
+        # Lấy tổng số bản ghi
+        total_count = session.exec(select(CoverLetter)).all()
+        total = len(total_count)
+        
+        # Truy vấn với phân trang
         statement = select(CoverLetter).order_by(CoverLetter.id.desc()).offset(offset).limit(limit)
-        return session.exec(statement).all()
+        results = session.exec(statement).all()
+        
+        return PaginatedResponseModel(
+            success=True,
+            message=f"Lấy danh sách cover letter thành công",
+            data=results,
+            total=total,
+            offset=offset,
+            limit=limit,
+            metadata={"page": offset // limit + 1}
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi khi lấy danh sách cover letter: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi khi lấy danh sách cover letter: {str(e)}"
+        )
 
-@app.post("/upload-cv")
-async def upload_cv(cv_file: UploadFile = File(...), session: Session = Depends(get_session)):
+@app.post("/api/upload-cv", status_code=status.HTTP_201_CREATED)
+async def upload_cv(
+    cv_file: Optional[UploadFile] = File(None),
+    session: Session = Depends(get_session)
+):
     try:
+        # Check if any file was provided
+        if cv_file is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No file uploaded. Please provide a PDF file."
+            )
+            
         # Kiểm tra định dạng file
+        print('filename:', cv_file.filename)
         if not cv_file.filename.endswith('.pdf'):
-            raise HTTPException(status_code=400, detail="Chỉ chấp nhận file PDF")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Chỉ chấp nhận file PDF"
+            )
         
         # Lưu file tạm thời
         with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
@@ -227,7 +344,10 @@ async def upload_cv(cv_file: UploadFile = File(...), session: Session = Depends(
             for page in pdf_reader.pages:
                 text_content += page.extract_text()
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Lỗi khi đọc file PDF: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Lỗi khi đọc file PDF: {str(e)}"
+            )
         finally:
             # Xóa file tạm
             os.unlink(temp_file_path)
@@ -235,12 +355,19 @@ async def upload_cv(cv_file: UploadFile = File(...), session: Session = Depends(
         # Trích xuất thông tin từ CV
         extracted_info = extract_info_from_cv(text_content, session)
         
-        return extracted_info
+        return ResponseModel(
+            success=True,
+            message="Trích xuất thông tin từ CV thành công",
+            data=extracted_info
+        )
     
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        raise HTTPException(status_code=500, detail=f"Lỗi khi xử lý CV: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi khi xử lý CV: {str(e)}"
+        )
 
 def extract_info_from_cv(text_content: str, session: Session):
     """
@@ -272,20 +399,25 @@ def extract_info_from_cv(text_content: str, session: Session):
         # Phân tích kết quả
         result = response.choices[0].message.content.strip()
         
-        # Lưu kỹ năng và kinh nghiệm vào database
-        extracted_data = eval(result)
+        # Parse JSON result
+        extracted_data = json.loads(result)
+        
+        # Convert any list data to JSON strings before saving to database
+        projects_data = extracted_data.get("projects", "")
+        if isinstance(projects_data, list):
+            projects_data = json.dumps(projects_data)
         
         # Tạo và lưu Skills
         db_skills = Skills(
-            tech_skills=extracted_data.get("tech_skills", ""),
-            soft_skills=extracted_data.get("soft_skills", "")
+            tech_skills=json.dumps(extracted_data.get("tech_skills", "")),
+            soft_skills=json.dumps(extracted_data.get("soft_skills", ""))
         )
         session.add(db_skills)
         
         # Tạo và lưu Experience
         db_experience = Experience(
-            work_experience=extracted_data.get("work_experience", ""),
-            projects=extracted_data.get("projects", "")
+            work_experience=json.dumps(extracted_data.get("work_experience", "")) if isinstance(extracted_data.get("work_experience", ""), (list, dict)) else extracted_data.get("work_experience", ""),
+            projects=projects_data  # This is already JSON encoded if it was a list
         )
         session.add(db_experience)
         
@@ -326,4 +458,4 @@ def extract_info_from_cv(text_content: str, session: Session):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

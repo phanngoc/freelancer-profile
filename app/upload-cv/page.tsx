@@ -1,206 +1,204 @@
-'use client'
+'use client';
 
 import React, { useState, useRef } from 'react';
-
-interface ExtractedCV {
-  tech_skills?: string;
-  soft_skills?: string;
-  work_experience?: string;
-  projects?: string;
-  education?: string;
-}
+import { FaUpload, FaFile, FaCheck, FaExclamationTriangle } from 'react-icons/fa';
+import { Spinner } from '../../components/Spinner';
 
 export default function UploadCVPage() {
+  const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState('');
-  const [extractedData, setExtractedData] = useState<ExtractedCV | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<'success' | 'error' | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleUpload = async (e: React.FormEvent) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      setUploadMessage('');
+      setUploadStatus(null);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
     
-    if (!fileInputRef.current?.files?.[0]) {
-      setUploadMessage('Vui lòng chọn file PDF để tải lên');
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (droppedFile) {
+      setFile(droppedFile);
+      setUploadMessage('');
+      setUploadStatus(null);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!file) {
+      setUploadMessage('Vui lòng chọn file CV trước khi tải lên');
+      setUploadStatus('error');
       return;
     }
-    
-    const file = fileInputRef.current.files[0];
-    if (!file.name.endsWith('.pdf')) {
-      setUploadMessage('Chỉ chấp nhận file PDF');
-      return;
-    }
-    
+
     setIsUploading(true);
-    setUploadMessage('Đang xử lý CV...');
-    
+    setUploadMessage('');
+    setUploadStatus(null);
+
+    // Kiểm tra loại file
+    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowedTypes.includes(file.type)) {
+      setUploadMessage('Chỉ hỗ trợ file PDF và Word (.doc, .docx)');
+      setUploadStatus('error');
+      setIsUploading(false);
+      return;
+    }
+
     const formData = new FormData();
     formData.append('cv_file', file);
-    
+
     try {
-      const response = await fetch('http://localhost:8000/upload-cv', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/upload-cv`, {
         method: 'POST',
         body: formData,
       });
-      
+
       if (response.ok) {
-        const data = await response.json();
-        setExtractedData(data);
-        setUploadMessage('Đã xử lý CV thành công!');
+        setUploadMessage('CV đã được tải lên thành công!');
+        setUploadStatus('success');
+        setFile(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
       } else {
         const error = await response.json();
-        setUploadMessage(`Lỗi: ${error.detail || 'Không thể xử lý CV'}`);
+        setUploadMessage(`Lỗi: ${error.detail || 'Không thể tải lên CV'}`);
+        setUploadStatus('error');
       }
     } catch (error) {
       setUploadMessage('Lỗi kết nối đến server');
+      setUploadStatus('error');
       console.error('Lỗi khi tải lên CV:', error);
     } finally {
       setIsUploading(false);
     }
   };
 
-  const handleFileSelect = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleFileDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0];
-      if (file.type === 'application/pdf') {
-        if (fileInputRef.current) {
-          const dataTransfer = new DataTransfer();
-          dataTransfer.items.add(file);
-          fileInputRef.current.files = dataTransfer.files;
-        }
-      } else {
-        setUploadMessage('Chỉ chấp nhận file PDF');
-      }
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
-      <div className="max-w-5xl mx-auto px-6 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50">
+      <div className="max-w-4xl mx-auto px-6 py-12">
         <header className="mb-8">
+          <div className="inline-block bg-teal-100 text-teal-600 px-3 py-1 rounded-full text-sm font-medium mb-3">
+            Hồ sơ chuyên nghiệp
+          </div>
           <h1 className="text-3xl font-bold text-gray-800 mb-2">
-            Upload CV
+            Tải lên CV của bạn
           </h1>
           <p className="text-gray-600">
-            Tải lên CV của bạn để trích xuất thông tin
+            Tải lên CV hoặc hồ sơ của bạn để phân tích và tạo hồ sơ ứng viên tự động
           </p>
         </header>
         
-        <div className="bg-white shadow-md rounded-lg p-6">
-          <form onSubmit={handleUpload}>
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">Tải lên file CV</h2>
-              
-              <div 
-                className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center"
-                onDragOver={handleFileDragOver}
-                onDrop={handleFileDrop}
-              >
-                <div className="mb-4">
-                  <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  <p className="mt-1 text-sm text-gray-600">
-                    Kéo và thả file PDF vào đây hoặc{' '}
-                    <span 
-                      className="font-medium text-indigo-600 hover:text-indigo-500 cursor-pointer"
-                      onClick={handleFileSelect}
-                    >
-                      chọn tệp
-                    </span>
+        <div className="bg-white rounded-xl p-8 shadow-sm">
+          <div
+            className={`border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-colors ${
+              file ? 'border-teal-300 bg-teal-50' : 'border-gray-200 hover:border-teal-200 hover:bg-gray-50'
+            }`}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            
+            <div className="flex flex-col items-center justify-center">
+              {file ? (
+                <>
+                  <div className="w-16 h-16 bg-teal-100 text-teal-500 rounded-full flex items-center justify-center mb-4">
+                    <FaFile className="text-3xl" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-800 mb-1">
+                    {file.name}
+                  </h3>
+                  <p className="text-gray-500 mb-4">
+                    {(file.size / 1024 / 1024).toFixed(2)} MB
                   </p>
-                  <p className="mt-1 text-xs text-gray-500">Chỉ chấp nhận file PDF</p>
-                  <input
-                    ref={fileInputRef}
-                    id="file-upload"
-                    name="file-upload"
-                    type="file"
-                    className="hidden"
-                    accept=".pdf"
-                    onChange={() => setUploadMessage('')}
-                  />
-                </div>
-              </div>
-              
-              {uploadMessage && (
-                <p className={`mt-2 text-center ${uploadMessage.startsWith('Lỗi') ? 'text-red-500' : uploadMessage === 'Đang xử lý CV...' ? 'text-blue-500' : 'text-green-500'}`}>
-                  {uploadMessage}
-                </p>
+                  <p className="text-teal-600 text-sm">
+                    Nhấp vào đây để chọn file khác
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                    <FaUpload className="text-3xl text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-800 mb-2">
+                    Kéo và thả CV của bạn vào đây
+                  </h3>
+                  <p className="text-gray-500 mb-4">
+                    Hoặc nhấp vào đây để tìm kiếm file trên máy tính của bạn
+                  </p>
+                  <p className="text-gray-400 text-sm">
+                    Hỗ trợ định dạng PDF và Word (.doc, .docx)
+                  </p>
+                </>
               )}
             </div>
-            
-            {extractedData && (
-              <div className="mt-8 mb-6">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4">Thông tin đã trích xuất</h2>
-                
-                <div className="bg-gray-50 p-4 rounded-md">
-                  <div className="mb-4">
-                    <h3 className="text-sm font-medium text-gray-700 mb-2">Kỹ năng kỹ thuật</h3>
-                    <div className="bg-white p-3 rounded border border-gray-200">
-                      <p className="text-gray-800">{extractedData.tech_skills || 'Không có thông tin'}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="mb-4">
-                    <h3 className="text-sm font-medium text-gray-700 mb-2">Kỹ năng mềm</h3>
-                    <div className="bg-white p-3 rounded border border-gray-200">
-                      <p className="text-gray-800">{extractedData.soft_skills || 'Không có thông tin'}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="mb-4">
-                    <h3 className="text-sm font-medium text-gray-700 mb-2">Kinh nghiệm làm việc</h3>
-                    <div className="bg-white p-3 rounded border border-gray-200">
-                      <p className="text-gray-800 whitespace-pre-line">{extractedData.work_experience || 'Không có thông tin'}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="mb-4">
-                    <h3 className="text-sm font-medium text-gray-700 mb-2">Dự án</h3>
-                    <div className="bg-white p-3 rounded border border-gray-200">
-                      <p className="text-gray-800 whitespace-pre-line">{extractedData.projects || 'Không có thông tin'}</p>
-                    </div>
-                  </div>
-                  
-                  {extractedData.education && (
-                    <div className="mb-4">
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">Học vấn</h3>
-                      <div className="bg-white p-3 rounded border border-gray-200">
-                        <p className="text-gray-800 whitespace-pre-line">{extractedData.education}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            
-            <div className="text-right">
-              <button
-                type="submit"
-                disabled={isUploading}
-                className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-              >
-                {isUploading ? 'Đang xử lý...' : 'Xử lý CV'}
-              </button>
+          </div>
+          
+          {uploadMessage && (
+            <div className={`mt-6 px-4 py-3 rounded-lg flex items-center ${
+              uploadStatus === 'success' 
+                ? 'bg-green-50 text-green-600 border border-green-100' 
+                : 'bg-red-50 text-red-600 border border-red-100'
+            }`}>
+              {uploadStatus === 'success' ? (
+                <FaCheck className="mr-2" />
+              ) : (
+                <FaExclamationTriangle className="mr-2" />
+              )}
+              <p>{uploadMessage}</p>
             </div>
-          </form>
+          )}
+          
+          <div className="mt-8 flex justify-center">
+            <button
+              type="button"
+              onClick={handleUpload}
+              disabled={isUploading || !file}
+              className={`flex items-center px-6 py-3 rounded-lg font-medium transition-colors ${
+                !file 
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                  : 'bg-teal-500 text-white hover:bg-teal-600'
+              }`}
+            >
+              {isUploading ? (
+                <>
+                  <Spinner size="small" color="white" />
+                  <span className="ml-2">Đang tải lên...</span>
+                </>
+              ) : (
+                <>
+                  <FaUpload className="mr-2" />
+                  <span>Tải lên CV</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
         
-        <footer className="mt-16 text-center text-gray-500 text-sm">
+        <footer className="mt-16 text-center text-gray-400 text-sm">
           <p>&copy; {new Date().getFullYear()} Freelancer Profile Generator</p>
         </footer>
       </div>
     </div>
   );
-} 
+}
