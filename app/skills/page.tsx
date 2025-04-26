@@ -4,40 +4,41 @@ import React, { useState, useEffect } from 'react';
 import { FaCode, FaPlusCircle, FaTimesCircle, FaSave, FaCheck } from 'react-icons/fa';
 import { Spinner } from '../../components/Spinner';
 
+// API Base URL constant
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+
 export default function SkillsPage() {
-  const [skills, setSkills] = useState<string[]>([]);
-  const [newSkill, setNewSkill] = useState('');
+  const [techSkills, setTechSkills] = useState<string>('');
+  const [softSkills, setSoftSkills] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [saveMessage, setSaveMessage] = useState('');
   const [saveStatus, setSaveStatus] = useState<'success' | 'error' | null>(null);
 
   useEffect(() => {
     // Tải kỹ năng hiện có
     const fetchSkills = async () => {
+      setIsLoading(true);
       try {
-        const response = await fetch('http://localhost:8000/skills');
+        const response = await fetch(`${API_BASE_URL}/skills`);
         if (response.ok) {
           const data = await response.json();
-          setSkills(data.skills || []);
+          if (data.success && data.data) {
+            setTechSkills(data.data.tech_skills || '');
+            setSoftSkills(data.data.soft_skills || '');
+          }
+        } else {
+          console.log("No skills found or API error");
         }
       } catch (error) {
         console.error('Lỗi khi tải kỹ năng:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchSkills();
   }, []);
-
-  const addSkill = () => {
-    if (newSkill.trim() && !skills.includes(newSkill.trim())) {
-      setSkills([...skills, newSkill.trim()]);
-      setNewSkill('');
-    }
-  };
-
-  const removeSkill = (skillToRemove: string) => {
-    setSkills(skills.filter((skill) => skill !== skillToRemove));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,17 +47,20 @@ export default function SkillsPage() {
     setSaveStatus(null);
 
     try {
-      const response = await fetch('http://localhost:8000/skills', {
+      const response = await fetch(`${API_BASE_URL}/skills`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          skills,
+          tech_skills: techSkills,
+          soft_skills: softSkills
         }),
       });
 
-      if (response.ok) {
+      const data = await response.json();
+
+      if (response.ok && data.success) {
         setSaveMessage('Đã lưu kỹ năng thành công!');
         setSaveStatus('success');
         setTimeout(() => {
@@ -64,8 +68,7 @@ export default function SkillsPage() {
           setSaveStatus(null);
         }, 3000);
       } else {
-        const error = await response.json();
-        setSaveMessage(`Lỗi: ${error.detail || 'Không thể lưu kỹ năng'}`);
+        setSaveMessage(`Lỗi: ${data.message || 'Không thể lưu kỹ năng'}`);
         setSaveStatus('error');
       }
     } catch (error) {
@@ -93,95 +96,77 @@ export default function SkillsPage() {
         </header>
         
         <div className="bg-white rounded-xl p-8 shadow-sm">
-          <form onSubmit={handleSubmit}>
-            <div className="mb-8">
-              <div className="flex items-center mb-6">
-                <FaCode className="text-teal-500 mr-3" />
-                <h2 className="text-xl font-semibold text-gray-800">
-                  Quản lý kỹ năng
-                </h2>
+          {isLoading ? (
+            <div className="flex justify-center items-center py-12">
+              <Spinner size="large" />
+              <p className="ml-3 text-gray-600">Đang tải...</p>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit}>
+              <div className="mb-6">
+                <div className="flex items-center mb-4">
+                  <FaCode className="text-teal-500 mr-3" />
+                  <h2 className="text-xl font-semibold text-gray-800">
+                    Kỹ năng kỹ thuật
+                  </h2>
+                </div>
+                <textarea
+                  value={techSkills}
+                  onChange={(e) => setTechSkills(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-400 focus:border-transparent outline-none min-h-32"
+                  placeholder="Liệt kê các kỹ năng kỹ thuật của bạn (ví dụ: React, JavaScript, Python, SQL, Docker...)"
+                />
               </div>
               
-              <div className="flex mb-4">
-                <input
-                  type="text"
-                  value={newSkill}
-                  onChange={(e) => setNewSkill(e.target.value)}
-                  className="flex-1 px-4 py-3 border border-gray-200 rounded-l-lg focus:ring-2 focus:ring-teal-400 focus:border-transparent outline-none"
-                  placeholder="Thêm kỹ năng mới (ví dụ: React, Node.js, UI/UX Design)"
-                  onKeyPress={(e) => e.key === 'Enter' && e.preventDefault()}
+              <div className="mb-8">
+                <div className="flex items-center mb-4">
+                  <FaCode className="text-teal-500 mr-3" />
+                  <h2 className="text-xl font-semibold text-gray-800">
+                    Kỹ năng mềm
+                  </h2>
+                </div>
+                <textarea
+                  value={softSkills}
+                  onChange={(e) => setSoftSkills(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-400 focus:border-transparent outline-none min-h-32"
+                  placeholder="Liệt kê các kỹ năng mềm của bạn (ví dụ: Giao tiếp, Quản lý thời gian, Làm việc nhóm...)"
                 />
+              </div>
+              
+              <div className="mt-8 flex justify-end items-center">
+                {saveMessage && (
+                  <div className={`mr-4 px-4 py-2 rounded-lg ${
+                    saveStatus === 'success' 
+                      ? 'bg-green-50 text-green-600 border border-green-100' 
+                      : 'bg-red-50 text-red-600 border border-red-100'
+                  }`}>
+                    <p className="flex items-center">
+                      {saveStatus === 'success' && <FaCheck className="mr-2" />}
+                      {saveMessage}
+                    </p>
+                  </div>
+                )}
+                
                 <button
-                  type="button"
-                  onClick={addSkill}
-                  className="px-5 py-3 bg-teal-500 text-white rounded-r-lg hover:bg-teal-600 focus:outline-none flex items-center"
+                  type="submit"
+                  disabled={isSaving}
+                  className="flex items-center px-5 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <FaPlusCircle className="mr-2" />
-                  Thêm
+                  {isSaving ? (
+                    <>
+                      <Spinner size="small" color="white" />
+                      <span className="ml-2">Đang lưu...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FaSave className="mr-2" />
+                      <span>Lưu thay đổi</span>
+                    </>
+                  )}
                 </button>
               </div>
-              
-              <div className="bg-gray-50 p-6 rounded-lg border border-gray-100">
-                {skills.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {skills.map((skill, index) => (
-                      <div 
-                        key={index} 
-                        className="flex items-center bg-white px-4 py-2 rounded-lg border border-gray-100"
-                      >
-                        <span>{skill}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeSkill(skill)}
-                          className="ml-2 text-gray-400 hover:text-red-500 focus:outline-none"
-                          aria-label="Remove skill"
-                        >
-                          <FaTimesCircle />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-500 text-center py-4">
-                    Bạn chưa thêm kỹ năng nào. Thêm kỹ năng để hoàn thiện hồ sơ của mình.
-                  </p>
-                )}
-              </div>
-            </div>
-            
-            <div className="mt-8 flex justify-end items-center">
-              {saveMessage && (
-                <div className={`mr-4 px-4 py-2 rounded-lg ${
-                  saveStatus === 'success' 
-                    ? 'bg-green-50 text-green-600 border border-green-100' 
-                    : 'bg-red-50 text-red-600 border border-red-100'
-                }`}>
-                  <p className="flex items-center">
-                    {saveStatus === 'success' && <FaCheck className="mr-2" />}
-                    {saveMessage}
-                  </p>
-                </div>
-              )}
-              
-              <button
-                type="submit"
-                disabled={isSaving}
-                className="flex items-center px-5 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {isSaving ? (
-                  <>
-                    <Spinner size="small" color="white" />
-                    <span className="ml-2">Đang lưu...</span>
-                  </>
-                ) : (
-                  <>
-                    <FaSave className="mr-2" />
-                    <span>Lưu thay đổi</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
+            </form>
+          )}
         </div>
         
         <footer className="mt-16 text-center text-gray-400 text-sm">
