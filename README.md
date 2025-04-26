@@ -2,6 +2,9 @@
 
 Ứng dụng này giúp freelancer dễ dàng tạo cover letter chuyên nghiệp dựa trên mô tả công việc, sử dụng công nghệ OpenAI để tạo nội dung thu hút người thuê.
 
+
+![Cover Letter Generator](homepage.png)
+
 ## Công nghệ sử dụng
 
 - **Frontend**: Next.js 14, TailwindCSS
