@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Cover Letter Generator cho Freelancer
 
-## Getting Started
+Ứng dụng này giúp freelancer dễ dàng tạo cover letter chuyên nghiệp dựa trên mô tả công việc, sử dụng công nghệ OpenAI để tạo nội dung thu hút người thuê.
 
-First, run the development server:
+## Công nghệ sử dụng
 
+- **Frontend**: Next.js 14, TailwindCSS
+- **Backend**: Python FastAPI 
+- **AI**: OpenAI API
+
+## Cài đặt và Chạy dự án
+
+### Backend (Python FastAPI)
+
+1. Di chuyển vào thư mục backend:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd backend
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Cài đặt môi trường ảo Python:
+```bash
+python -m venv venv
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Kích hoạt môi trường ảo:
+- Windows:
+```bash
+venv\Scripts\activate
+```
+- MacOS/Linux:
+```bash
+source venv/bin/activate
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Cài đặt các thư viện cần thiết:
+```bash
+pip install fastapi uvicorn openai python-dotenv pydantic
+```
 
-## Learn More
+5. Tạo file `.env` trong thư mục backend và thêm API key của OpenAI:
+```
+OPENAI_API_KEY=your_openai_api_key_here
+```
 
-To learn more about Next.js, take a look at the following resources:
+6. Chạy server FastAPI:
+```bash
+uvicorn main:app --reload
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Backend sẽ chạy tại địa chỉ: `http://localhost:8000`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Frontend (Next.js)
 
-## Deploy on Vercel
+1. Cài đặt các thư viện của Next.js:
+```bash
+npm install
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+2. Chạy ứng dụng Next.js:
+```bash
+npm run dev
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Frontend sẽ chạy tại địa chỉ: `http://localhost:3000`
+
+## Cách sử dụng
+
+1. Truy cập vào ứng dụng tại `http://localhost:3000`
+2. Nhập mô tả công việc từ nền tảng freelance hoặc từ khách hàng
+3. Thêm các thông tin bổ sung như kỹ năng, kinh nghiệm (tùy chọn)
+4. Chọn giọng điệu phù hợp
+5. Nhấn "Tạo Cover Letter"
+6. Sao chép cover letter được tạo để gửi cho khách hàng tiềm năng
+
+## Tính năng
+
+- Tạo cover letter tùy chỉnh dựa trên mô tả công việc
+- Hỗ trợ nhiều giọng điệu khác nhau (Chuyên nghiệp, Thân thiện, Nhiệt tình, v.v.)
+- Giao diện người dùng thân thiện, đẹp mắt với Tailwind CSS
+- Phản hồi nhanh chóng từ API OpenAI
+- Dễ dàng sao chép nội dung
