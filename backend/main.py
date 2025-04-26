@@ -253,19 +253,24 @@ async def get_experience(session: Session = Depends(get_session)):
                 detail="Không tìm thấy thông tin kinh nghiệm"
             )
         
-        # If projects is stored as a JSON string, convert it back to a Python object
+        # Convert JSON string to list if needed
         if experience.projects and experience.projects.startswith('['):
             try:
-                # Create a copy of the experience object to avoid modifying the SQLModel directly
-                experience_dict = experience.model_dump()
-                experience_dict['projects'] = json.loads(experience.projects)
+                # Create a new ExperienceRead object with the parsed projects
+                experience_data = ExperienceRead(
+                    id=experience.id,
+                    work_experience=experience.work_experience,
+                    projects=json.loads(experience.projects),
+                    created_at=experience.created_at,
+                    updated_at=experience.updated_at
+                )
+                
                 return ResponseModel(
                     success=True,
                     message="Lấy thông tin kinh nghiệm thành công",
-                    data=experience_dict
+                    data=experience_data
                 )
             except json.JSONDecodeError:
-                # If JSON parsing fails, return the raw string
                 pass
         
         return ResponseModel(

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Spinner } from './Spinner';
 
 // API Base URL constant
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
 interface FormData {
   job_description: string;
@@ -47,14 +47,17 @@ export default function CoverLetterForm() {
         
         // Fetch experience data
         const experienceResponse = await fetch(`${API_BASE_URL}/experience`);
-        const experienceData = await experienceResponse.json();
-        console.log('Experience data:', experienceData);
+        
+        // Parse response data once
+        let skillsData;
+        let experienceData;
+        
         if (skillsResponse.ok) {
-          const skillsData = await skillsResponse.json();
+          skillsData = await skillsResponse.json();
           // Combine tech skills and soft skills for the form
           const combinedSkills = [
-            skillsData.tech_skills || '', 
-            skillsData.soft_skills || ''
+            skillsData.data?.tech_skills || '', 
+            skillsData.data?.soft_skills || ''
           ].filter(Boolean).join('\n\n');
           
           setFormData(prev => ({
@@ -64,14 +67,18 @@ export default function CoverLetterForm() {
         }
         
         if (experienceResponse.ok) {
-          const experienceData = await experienceResponse.json();
+          experienceData = await experienceResponse.json();
+          console.log('Experience data:', experienceData);
+          
           setFormData(prev => ({
             ...prev,
-            experience_level: experienceData.work_experience ? 
-              extractExperienceLevel(experienceData.work_experience) : '',
+            experience_level: experienceData.data?.work_experience ? 
+              extractExperienceLevel(experienceData.data.work_experience) : '',
             // Optionally add project experience to additional info
-            additional_info: experienceData.projects ? 
-              `Dự án nổi bật:\n${experienceData.projects}` : prev.additional_info
+            additional_info: experienceData.data?.projects ? 
+              `Dự án nổi bật:\n${Array.isArray(experienceData.data.projects) ? 
+                experienceData.data.projects.join('\n- ') : 
+                experienceData.data.projects}` : prev.additional_info
           }));
         }
       } catch (err) {
@@ -134,8 +141,9 @@ export default function CoverLetterForm() {
         throw new Error('Không thể tạo cover letter');
       }
       
-      const data = await response.json();
-      setCoverLetter(data.cover_letter);
+      const responseJson = await response.json();
+      console.log('Generated cover letter:', responseJson);
+      setCoverLetter(responseJson.data.cover_letter);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Đã xảy ra lỗi');
     } finally {

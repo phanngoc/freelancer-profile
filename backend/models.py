@@ -1,6 +1,7 @@
-from typing import Optional, List
+from typing import Optional, List, Union, Any
 from datetime import datetime
 from sqlmodel import Field, SQLModel, Relationship, create_engine, Session
+import json
 
 
 class SkillsBase(SQLModel):
@@ -26,7 +27,17 @@ class SkillsRead(SkillsBase):
 
 class ExperienceBase(SQLModel):
     work_experience: str = ""
+    # In the database, projects is always stored as a string (JSON)
     projects: str = ""
+
+
+# Special model for experience read operations - can handle both string and list formats
+class ExperienceRead(SQLModel):
+    id: int
+    work_experience: str = ""
+    projects: Union[str, List[str]] = ""
+    created_at: datetime
+    updated_at: datetime
 
 
 class Experience(ExperienceBase, table=True):
@@ -37,12 +48,6 @@ class Experience(ExperienceBase, table=True):
 
 class ExperienceCreate(ExperienceBase):
     pass
-
-
-class ExperienceRead(ExperienceBase):
-    id: int
-    created_at: datetime
-    updated_at: datetime
 
 
 class CoverLetterBase(SQLModel):
@@ -75,4 +80,4 @@ def create_db_and_tables():
 
 def get_session():
     with Session(engine) as session:
-        yield session 
+        yield session
