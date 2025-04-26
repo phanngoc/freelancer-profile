@@ -90,11 +90,11 @@ export default function CoverLetterForm() {
   return (
     <div className="flex flex-col md:flex-row gap-8">
       <div className="w-full md:w-1/2">
-        <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-6">Thông tin</h2>
+        <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm p-6 border border-blue-100">
+          <h2 className="text-2xl font-semibold text-blue-800 mb-6">Thông tin</h2>
           
           <div className="mb-6">
-            <label htmlFor="job_description" className="block text-gray-700 font-medium mb-2">
+            <label htmlFor="job_description" className="block text-blue-700 font-medium mb-2">
               Mô tả công việc <span className="text-red-500">*</span>
             </label>
             <textarea
@@ -103,13 +103,13 @@ export default function CoverLetterForm() {
               value={formData.job_description}
               onChange={handleChange}
               placeholder="Dán mô tả công việc từ nền tảng freelance hoặc khách hàng của bạn..."
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-h-48"
+              className="w-full p-3 border border-blue-200 rounded-md focus:ring-2 focus:ring-blue-400 focus:border-blue-400 min-h-48"
               required
             />
           </div>
           
           <div className="mb-6">
-            <label htmlFor="freelancer_skills" className="block text-gray-700 font-medium mb-2">
+            <label htmlFor="freelancer_skills" className="block text-blue-700 font-medium mb-2">
               Kỹ năng của bạn
             </label>
             <textarea
@@ -118,13 +118,13 @@ export default function CoverLetterForm() {
               value={formData.freelancer_skills}
               onChange={handleChange}
               placeholder="Mô tả kỹ năng và chuyên môn của bạn..."
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-h-24"
+              className="w-full p-3 border border-blue-200 rounded-md focus:ring-2 focus:ring-blue-400 focus:border-blue-400 min-h-24"
             />
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div>
-              <label htmlFor="experience_level" className="block text-gray-700 font-medium mb-2">
+              <label htmlFor="experience_level" className="block text-blue-700 font-medium mb-2">
                 Kinh nghiệm
               </label>
               <input
@@ -134,12 +134,12 @@ export default function CoverLetterForm() {
                 value={formData.experience_level}
                 onChange={handleChange}
                 placeholder="Ví dụ: 5 năm kinh nghiệm"
-                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full p-3 border border-blue-200 rounded-md focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
               />
             </div>
             
             <div>
-              <label htmlFor="tone" className="block text-gray-700 font-medium mb-2">
+              <label htmlFor="tone" className="block text-blue-700 font-medium mb-2">
                 Giọng điệu
               </label>
               <select
@@ -147,7 +147,7 @@ export default function CoverLetterForm() {
                 name="tone"
                 value={formData.tone}
                 onChange={handleChange}
-                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full p-3 border border-blue-200 rounded-md focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
               >
                 {TONE_OPTIONS.map((tone) => (
                   <option key={tone} value={tone}>
@@ -159,7 +159,7 @@ export default function CoverLetterForm() {
           </div>
           
           <div className="mb-6">
-            <label htmlFor="additional_info" className="block text-gray-700 font-medium mb-2">
+            <label htmlFor="additional_info" className="block text-blue-700 font-medium mb-2">
               Thông tin bổ sung
             </label>
             <textarea
@@ -168,12 +168,12 @@ export default function CoverLetterForm() {
               value={formData.additional_info}
               onChange={handleChange}
               placeholder="Thông tin thêm mà bạn muốn đề cập..."
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-h-24"
+              className="w-full p-3 border border-blue-200 rounded-md focus:ring-2 focus:ring-blue-400 focus:border-blue-400 min-h-24"
             />
           </div>
           
           {error && (
-            <div className="mb-6 p-3 bg-red-100 text-red-700 rounded-md">
+            <div className="mb-6 p-3 bg-red-50 text-red-700 rounded-md border border-red-100">
               {error}
             </div>
           )}
@@ -182,14 +182,14 @@ export default function CoverLetterForm() {
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 bg-indigo-600 text-white py-3 px-6 rounded-md hover:bg-indigo-700 transition duration-200 flex items-center justify-center"
+              className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-md hover:bg-blue-700 transition duration-200 flex items-center justify-center"
             >
               {loading ? <Spinner /> : 'Tạo Cover Letter'}
             </button>
             <button
               type="button"
               onClick={handleReset}
-              className="py-3 px-6 border border-gray-300 rounded-md hover:bg-gray-50 transition duration-200"
+              className="py-3 px-6 border border-blue-200 rounded-md hover:bg-blue-50 transition duration-200 text-blue-700"
             >
               Làm mới
             </button>
@@ -198,13 +198,13 @@ export default function CoverLetterForm() {
       </div>
       
       <div className="w-full md:w-1/2">
-        <div className="bg-white rounded-lg shadow-md p-6 h-full">
+        <div className="bg-white rounded-lg shadow-sm p-6 h-full border border-blue-100">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-semibold text-gray-800">Cover Letter</h2>
+            <h2 className="text-2xl font-semibold text-blue-800">Cover Letter</h2>
             {coverLetter && (
               <button
                 onClick={handleCopy}
-                className="text-indigo-600 hover:text-indigo-800 flex items-center gap-2"
+                className="text-blue-600 hover:text-blue-800 flex items-center gap-2"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
@@ -215,16 +215,16 @@ export default function CoverLetterForm() {
             )}
           </div>
           
-          <div className="prose prose-indigo max-w-none min-h-96 bg-gray-50 p-4 rounded-md whitespace-pre-wrap">
+          <div className="prose max-w-none min-h-96 bg-blue-50 p-4 rounded-md whitespace-pre-wrap border border-blue-100">
             {loading ? (
               <div className="flex items-center justify-center h-full">
                 <Spinner size="large" />
-                <p className="ml-3 text-gray-600">Đang tạo cover letter...</p>
+                <p className="ml-3 text-blue-600">Đang tạo cover letter...</p>
               </div>
             ) : coverLetter ? (
               coverLetter
             ) : (
-              <p className="text-gray-500 italic">
+              <p className="text-blue-500 italic">
                 Cover letter của bạn sẽ xuất hiện ở đây sau khi được tạo. Vui lòng nhập thông tin và nhấn "Tạo Cover Letter".
               </p>
             )}

@@ -1,72 +1,89 @@
-# Cover Letter Generator API
+# Backend API cho Freelancer Profile
 
-API FastAPI cho phép tạo cover letter dựa trên mô tả công việc bằng cách sử dụng OpenAI.
+Backend API được xây dựng bằng FastAPI để hỗ trợ tạo và quản lý hồ sơ freelancer, bao gồm:
+- Tạo cover letter từ mô tả công việc
+- Quản lý kỹ năng và kinh nghiệm
+- Trích xuất thông tin từ CV dạng PDF
 
 ## Cài đặt
 
 1. Tạo môi trường ảo Python:
+
 ```bash
 python -m venv venv
 ```
 
 2. Kích hoạt môi trường ảo:
-- Windows:
+
+- Trên Windows:
 ```bash
 venv\Scripts\activate
 ```
-- MacOS/Linux:
+
+- Trên macOS/Linux:
 ```bash
 source venv/bin/activate
 ```
 
 3. Cài đặt các thư viện:
+
 ```bash
-pip install fastapi uvicorn openai python-dotenv pydantic
+pip install -r requirements.txt
 ```
 
-## Cấu hình API OpenAI
+4. Tạo file `.env` với nội dung (thay thế bằng API key của bạn):
 
-1. Tạo file `.env` trong thư mục backend:
 ```
-OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_API_KEY=your_openai_api_key
 ```
-2. Thay thế `your_openai_api_key_here` bằng API key của bạn từ OpenAI.
 
-## Chạy Server
+## Chạy ứng dụng
 
 ```bash
 uvicorn main:app --reload
 ```
 
-Server sẽ chạy tại địa chỉ: `http://localhost:8000`
+Server sẽ khởi chạy tại `http://localhost:8000`.
 
 ## API Endpoints
 
-- `GET /`: Kiểm tra kết nối
-- `POST /generate-cover-letter`: Tạo cover letter từ mô tả công việc
+### Tạo Cover Letter
+- **URL:** `/generate-cover-letter`
+- **Method:** POST
+- **Body:** JSON
+  ```json
+  {
+    "job_description": "Mô tả công việc...",
+    "freelancer_skills": "Kỹ năng của freelancer...",
+    "experience_level": "Senior",
+    "tone": "Professional",
+    "additional_info": "Thông tin bổ sung..."
+  }
+  ```
 
-### Yêu cầu POST /generate-cover-letter
+### Quản lý kỹ năng
+- **URL:** `/skills`
+- **Method:** GET - Lấy kỹ năng hiện tại
+- **Method:** POST - Cập nhật kỹ năng mới
+  ```json
+  {
+    "tech_skills": "JavaScript, React, Node.js...",
+    "soft_skills": "Giao tiếp, Quản lý thời gian..."
+  }
+  ```
 
-```json
-{
-  "job_description": "Mô tả công việc của bạn ở đây",
-  "freelancer_skills": "Các kỹ năng của bạn (tùy chọn)",
-  "experience_level": "Mức kinh nghiệm của bạn (tùy chọn)",
-  "tone": "Giọng điệu (mặc định: Professional)",
-  "additional_info": "Thông tin bổ sung (tùy chọn)"
-}
-```
+### Quản lý kinh nghiệm
+- **URL:** `/experience`
+- **Method:** GET - Lấy kinh nghiệm hiện tại
+- **Method:** POST - Cập nhật kinh nghiệm mới
+  ```json
+  {
+    "work_experience": "Chi tiết kinh nghiệm làm việc...",
+    "projects": "Chi tiết các dự án..."
+  }
+  ```
 
-### Phản hồi
-
-```json
-{
-  "cover_letter": "Cover letter được tạo..."
-}
-```
-
-## Tài liệu API
-
-Sau khi chạy server, bạn có thể truy cập tài liệu API tại:
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc` 
+### Upload và trích xuất CV
+- **URL:** `/upload-cv`
+- **Method:** POST
+- **Body:** Form-data với trường `cv_file` là file PDF 

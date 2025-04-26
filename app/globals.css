@@ -3,9 +3,12 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 248, 250, 252;
-  --background-end-rgb: 241, 245, 249;
+  --foreground-rgb: 31, 41, 55;
+  --background-start-rgb: 240, 249, 255;
+  --background-end-rgb: 235, 245, 255;
+  --primary-blue: 59, 130, 246;
+  --primary-blue-light: 191, 219, 254;
+  --primary-blue-dark: 37, 99, 235;
 }
 
 body {
@@ -44,7 +47,7 @@ body {
 }
 
 .prose h1, .prose h2, .prose h3 {
-  color: #1f2937;
+  color: rgb(var(--primary-blue-dark));
   margin-top: 1.5em;
   margin-bottom: 0.75em;
   font-weight: 600;
