@@ -30,7 +30,30 @@ client = OpenAI(api_key=openai_api_key)
 # Khởi tạo database
 db.init_db()
 
-app = FastAPI(title="Freelancer Profile API")
+# Cấu hình FastAPI với thông tin OpenAPI chi tiết
+app = FastAPI(
+    title="Freelancer Profile API",
+    description="""
+    API backend cho ứng dụng quản lý hồ sơ freelancer và tạo cover letter dựa trên AI.
+    
+    ### Tính năng chính:
+    
+    * Tạo cover letter tự động dựa trên mô tả công việc
+    * Quản lý thông tin kỹ năng của freelancer
+    * Quản lý thông tin kinh nghiệm của freelancer
+    * Xử lý và phân tích CV của freelancer từ file PDF
+    """,
+    version="1.0.0",
+    contact={
+        "name": "Freelancer Profile Support",
+        "url": "https://freelancer-profile.example.com/support",
+        "email": "support@freelancer-profile.example.com",
+    },
+    license_info={
+        "name": "MIT License",
+        "url": "https://opensource.org/licenses/MIT",
+    },
+)
 
 # Cấu hình CORS
 app.add_middleware(
@@ -67,7 +90,11 @@ class CoverLetterRequest(BaseModel):
 class CoverLetterResponse(BaseModel):
     cover_letter: str
 
-@app.get("/api")
+@app.get("/api", 
+    summary="API Root Endpoint",
+    description="Returns a welcome message to confirm the API is working",
+    tags=["General"]
+)
 def read_root():
     return ResponseModel(
         success=True,
@@ -75,7 +102,12 @@ def read_root():
         data=None
     )
 
-@app.post("/api/init-sample-data", status_code=status.HTTP_201_CREATED)
+@app.post("/api/init-sample-data", 
+    status_code=status.HTTP_201_CREATED,
+    summary="Initialize Sample Data",
+    description="Creates initial sample data for the application including skills, experience, and a cover letter",
+    tags=["Admin"]
+)
 async def init_sample_data(session: Session = Depends(get_session)):
     """Tạo dữ liệu mẫu ban đầu cho ứng dụng"""
     try:
@@ -113,7 +145,16 @@ async def init_sample_data(session: Session = Depends(get_session)):
             detail=f"Lỗi khi tạo dữ liệu mẫu: {str(e)}"
         )
 
-@app.post("/api/generate-cover-letter", status_code=status.HTTP_201_CREATED)
+@app.post("/api/generate-cover-letter", 
+    status_code=status.HTTP_201_CREATED,
+    summary="Generate Cover Letter",
+    description="""
+    Generates a professional cover letter based on job description and freelancer information.
+    The cover letter is created using OpenAI's API and adapted to the specified tone.
+    """,
+    response_model=ResponseModel[CoverLetterResponse],
+    tags=["Cover Letter"]
+)
 async def generate_cover_letter(request: CoverLetterRequest):
     try:
         # Tạo prompt cho OpenAI
@@ -181,7 +222,13 @@ async def generate_cover_letter(request: CoverLetterRequest):
             detail=f"Lỗi khi tạo cover letter: {str(e)}"
         )
 
-@app.post("/api/skills", status_code=status.HTTP_201_CREATED, response_model=ResponseModel[SkillsRead])
+@app.post("/api/skills", 
+    status_code=status.HTTP_201_CREATED, 
+    response_model=ResponseModel[SkillsRead],
+    summary="Save Skills",
+    description="Saves a freelancer's technical and soft skills to the database",
+    tags=["Skills"]
+)
 async def save_skills(skills: SkillsCreate, session: Session = Depends(get_session)):
     try:
         db_skills = Skills.model_validate(skills)
@@ -199,7 +246,12 @@ async def save_skills(skills: SkillsCreate, session: Session = Depends(get_sessi
             detail=f"Lỗi khi lưu kỹ năng: {str(e)}"
         )
 
-@app.get("/api/skills", response_model=ResponseModel[SkillsRead])
+@app.get("/api/skills", 
+    response_model=ResponseModel[SkillsRead],
+    summary="Get Latest Skills",
+    description="Retrieves the most recently saved skills information",
+    tags=["Skills"]
+)
 async def get_skills(session: Session = Depends(get_session)):
     try:
         statement = select(Skills).order_by(Skills.id.desc()).limit(1)
@@ -223,7 +275,13 @@ async def get_skills(session: Session = Depends(get_session)):
             detail=f"Lỗi khi lấy thông tin kỹ năng: {str(e)}"
         )
 
-@app.post("/api/experience", status_code=status.HTTP_201_CREATED, response_model=ResponseModel[ExperienceRead])
+@app.post("/api/experience", 
+    status_code=status.HTTP_201_CREATED, 
+    response_model=ResponseModel[ExperienceRead],
+    summary="Save Experience",
+    description="Saves a freelancer's work experience and project history to the database",
+    tags=["Experience"]
+)
 async def save_experience(experience: ExperienceCreate, session: Session = Depends(get_session)):
     try:
         db_experience = Experience.model_validate(experience)
@@ -241,7 +299,12 @@ async def save_experience(experience: ExperienceCreate, session: Session = Depen
             detail=f"Lỗi khi lưu kinh nghiệm: {str(e)}"
         )
 
-@app.get("/api/experience", response_model=ResponseModel[ExperienceRead])
+@app.get("/api/experience", 
+    response_model=ResponseModel[ExperienceRead],
+    summary="Get Latest Experience",
+    description="Retrieves the most recently saved experience information",
+    tags=["Experience"]
+)
 async def get_experience(session: Session = Depends(get_session)):
     try:
         statement = select(Experience).order_by(Experience.id.desc()).limit(1)
@@ -286,7 +349,15 @@ async def get_experience(session: Session = Depends(get_session)):
             detail=f"Lỗi khi lấy thông tin kinh nghiệm: {str(e)}"
         )
 
-@app.get("/api/cover-letters", response_model=PaginatedResponseModel[List[CoverLetterRead]])
+@app.get("/api/cover-letters", 
+    response_model=PaginatedResponseModel[List[CoverLetterRead]],
+    summary="List Cover Letters",
+    description="""
+    Retrieves a paginated list of previously generated cover letters.
+    Results are ordered by most recent first.
+    """,
+    tags=["Cover Letter"]
+)
 async def get_cover_letters(
     session: Session = Depends(get_session),
     offset: int = 0,
@@ -316,9 +387,17 @@ async def get_cover_letters(
             detail=f"Lỗi khi lấy danh sách cover letter: {str(e)}"
         )
 
-@app.post("/api/upload-cv", status_code=status.HTTP_201_CREATED)
+@app.post("/api/upload-cv", 
+    status_code=status.HTTP_201_CREATED,
+    summary="Upload and Parse CV",
+    description="""
+    Uploads a PDF CV file and extracts information such as skills, experience, and education.
+    The extracted information is saved to the database and returned in the response.
+    """,
+    tags=["CV Processing"]
+)
 async def upload_cv(
-    cv_file: Optional[UploadFile] = File(None),
+    cv_file: Optional[UploadFile] = File(None, description="PDF file containing the freelancer's CV"),
     session: Session = Depends(get_session)
 ):
     try:
