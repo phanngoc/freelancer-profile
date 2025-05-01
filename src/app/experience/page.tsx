@@ -1,10 +1,19 @@
 'use client'
 
 import React, { useState, useEffect } from 'react';
-import { FaBriefcase, FaProjectDiagram, FaCheck, FaSave } from 'react-icons/fa';
+import { FaBriefcase, FaProjectDiagram, FaCheck, FaSave, FaPlus } from 'react-icons/fa';
 import { Spinner } from '../../components/Spinner';
 
+interface Experience {
+  id: number;
+  work_experience: string;
+  projects: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export default function ExperiencePage() {
+  const [experiences, setExperiences] = useState<Experience[]>([]);
   const [workExperience, setWorkExperience] = useState('');
   const [projects, setProjects] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -12,22 +21,20 @@ export default function ExperiencePage() {
   const [saveStatus, setSaveStatus] = useState<'success' | 'error' | null>(null);
 
   useEffect(() => {
-    // Tải thông tin kinh nghiệm hiện có
-    const fetchExperience = async () => {
-      try {
-        const response = await fetch('http://localhost:8000/experience');
-        if (response.ok) {
-          const data = await response.json();
-          setWorkExperience(data.work_experience || '');
-          setProjects(data.projects || '');
-        }
-      } catch (error) {
-        console.error('Lỗi khi tải thông tin kinh nghiệm:', error);
-      }
-    };
-
-    fetchExperience();
+    fetchExperiences();
   }, []);
+
+  const fetchExperiences = async () => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/experience`);
+      if (response.ok) {
+        const responseJson = await response.json();
+        setExperiences(responseJson.data || []);
+      }
+    } catch (error) {
+      console.error('Lỗi khi tải thông tin kinh nghiệm:', error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +43,7 @@ export default function ExperiencePage() {
     setSaveStatus(null);
 
     try {
-      const response = await fetch('http://localhost:8000/experience', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/experience`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -50,6 +57,9 @@ export default function ExperiencePage() {
       if (response.ok) {
         setSaveMessage('Đã lưu thông tin kinh nghiệm thành công!');
         setSaveStatus('success');
+        setWorkExperience('');
+        setProjects('');
+        fetchExperiences(); // Refresh danh sách sau khi thêm mới
         setTimeout(() => {
           setSaveMessage('');
           setSaveStatus(null);
@@ -82,8 +92,49 @@ export default function ExperiencePage() {
             Cập nhật kinh nghiệm làm việc và dự án nổi bật của bạn
           </p>
         </header>
+
+        {/* Danh sách kinh nghiệm dạng bảng */}
+        <div className="mb-8 bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Kinh nghiệm làm việc
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Dự án nổi bật
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Cập nhật lần cuối
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {experiences.map((exp) => (
+                  <tr key={exp.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-pre-line text-sm text-gray-900">
+                      {exp.work_experience}
+                    </td>
+                    <td className="px-6 py-4 whitespace-pre-line text-sm text-gray-900">
+                      {exp.projects}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(exp.updated_at).toLocaleDateString('vi-VN')}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
         
+        {/* Form thêm mới */}
         <div className="bg-white rounded-xl p-8 shadow-sm">
+          <h2 className="text-xl font-semibold text-gray-800 mb-6 flex items-center">
+            <FaPlus className="mr-2 text-teal-500" />
+            Thêm kinh nghiệm mới
+          </h2>
           <form onSubmit={handleSubmit}>
             <div className="space-y-8">
               <div>

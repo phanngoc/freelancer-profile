@@ -247,32 +247,36 @@ async def save_skills(skills: SkillsCreate, session: Session = Depends(get_sessi
         )
 
 @app.get("/api/skills", 
-    response_model=ResponseModel[SkillsRead],
-    summary="Get Latest Skills",
-    description="Retrieves the most recently saved skills information",
+    response_model=PaginatedResponseModel[List[SkillsRead]],
+    summary="Get All Skills",
+    description="Retrieves all saved skills information with pagination",
     tags=["Skills"]
 )
-async def get_skills(session: Session = Depends(get_session)):
+async def get_skills(
+    session: Session = Depends(get_session),
+    offset: int = 0,
+    limit: int = 100
+):
     try:
-        statement = select(Skills).order_by(Skills.id.desc()).limit(1)
-        skills = session.exec(statement).first()
-        if not skills:
-            # Trả về 404 nếu không tìm thấy kết quả
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Không tìm thấy thông tin kỹ năng"
-            )
-        return ResponseModel(
+        # Lấy tất cả kỹ năng với phân trang
+        query = select(Skills).offset(offset).limit(limit)
+        skills = session.exec(query).all()
+        
+        # Đếm tổng số bản ghi
+        total = session.exec(select(Skills)).count()
+        
+        return PaginatedResponseModel(
             success=True,
-            message="Lấy thông tin kỹ năng thành công",
-            data=skills
+            message="Lấy danh sách kỹ năng thành công",
+            data=skills,
+            total=total,
+            offset=offset,
+            limit=limit
         )
-    except HTTPException:
-        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Lỗi khi lấy thông tin kỹ năng: {str(e)}"
+            detail=f"Lỗi khi lấy danh sách kỹ năng: {str(e)}"
         )
 
 @app.post("/api/experience", 
@@ -300,53 +304,92 @@ async def save_experience(experience: ExperienceCreate, session: Session = Depen
         )
 
 @app.get("/api/experience", 
-    response_model=ResponseModel[ExperienceRead],
-    summary="Get Latest Experience",
-    description="Retrieves the most recently saved experience information",
+    response_model=PaginatedResponseModel[List[ExperienceRead]],
+    summary="Get All Experience",
+    description="Retrieves all saved experience information with pagination, search and sorting",
     tags=["Experience"]
 )
-async def get_experience(session: Session = Depends(get_session)):
+async def get_experience(
+    session: Session = Depends(get_session),
+    offset: int = 0,
+    limit: int = 100,
+    search: Optional[str] = None,
+    sort_by: Optional[str] = "id",
+    sort_order: Optional[str] = "desc"
+):
     try:
-        statement = select(Experience).order_by(Experience.id.desc()).limit(1)
-        experience = session.exec(statement).first()
-        if not experience:
-            # Trả về 404 nếu không tìm thấy kết quả
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Không tìm thấy thông tin kinh nghiệm"
+        # Kiểm tra và điều chỉnh tham số phân trang
+        if offset < 0:
+            offset = 0
+        if limit < 1 or limit > 100:
+            limit = 100
+            
+        # Xây dựng query cơ bản
+        query = select(Experience)
+        
+        # Thêm điều kiện tìm kiếm nếu có
+        if search:
+            search = f"%{search}%"
+            query = query.where(
+                (Experience.work_experience.ilike(search)) |
+                (Experience.projects.ilike(search))
+            )
+            
+        # Thêm sắp xếp
+        if sort_by not in ["id", "work_experience", "projects"]:
+            sort_by = "id"
+        if sort_order not in ["asc", "desc"]:
+            sort_order = "desc"
+            
+        sort_column = getattr(Experience, sort_by)
+        if sort_order == "desc":
+            query = query.order_by(sort_column.desc())
+        else:
+            query = query.order_by(sort_column.asc())
+            
+        # Thêm phân trang
+        query = query.offset(offset).limit(limit)
+        
+        # Thực thi query
+        experiences = session.exec(query).all()
+        
+        if not experiences:
+            return PaginatedResponseModel(
+                success=True,
+                message="Không tìm thấy dữ liệu kinh nghiệm",
+                data=[],
+                total=0,
+                offset=offset,
+                limit=limit
             )
         
-        # Convert JSON string to list if needed
-        if experience.projects and experience.projects.startswith('['):
-            try:
-                # Create a new ExperienceRead object with the parsed projects
-                experience_data = ExperienceRead(
-                    id=experience.id,
-                    work_experience=experience.work_experience,
-                    projects=json.loads(experience.projects),
-                    created_at=experience.created_at,
-                    updated_at=experience.updated_at
-                )
-                
-                return ResponseModel(
-                    success=True,
-                    message="Lấy thông tin kinh nghiệm thành công",
-                    data=experience_data
-                )
-            except json.JSONDecodeError:
-                pass
+        # Đếm tổng số bản ghi
+        count_query = select(Experience)
+        if search:
+            count_query = count_query.where(
+                (Experience.work_experience.ilike(search)) |
+                (Experience.projects.ilike(search))
+            )
+        total = len(session.exec(count_query).all())
         
-        return ResponseModel(
+        return PaginatedResponseModel(
             success=True,
-            message="Lấy thông tin kinh nghiệm thành công",
-            data=experience
+            message="Lấy danh sách kinh nghiệm thành công",
+            data=experiences,
+            total=total,
+            offset=offset,
+            limit=limit,
+            metadata={
+                "search": search,
+                "sort_by": sort_by,
+                "sort_order": sort_order
+            }
         )
-    except HTTPException:
-        raise
     except Exception as e:
+        print('e', e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Lỗi khi lấy thông tin kinh nghiệm: {str(e)}"
+            detail=f"Lỗi khi lấy danh sách kinh nghiệm: {str(e)}"
         )
 
 @app.get("/api/cover-letters", 
