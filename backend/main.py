@@ -1,5 +1,6 @@
 import os
 import tempfile
+import logging
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -17,6 +18,7 @@ from models import (
     CoverLetter, CoverLetterCreate, CoverLetterRead,
     get_session
 )
+from datetime import datetime
 
 # Tải biến môi trường từ file .env
 load_dotenv()
@@ -29,6 +31,13 @@ client = OpenAI(api_key=openai_api_key)
 
 # Khởi tạo database
 db.init_db()
+
+# Cấu hình logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Cấu hình FastAPI với thông tin OpenAPI chi tiết
 app = FastAPI(
@@ -231,16 +240,19 @@ async def generate_cover_letter(request: CoverLetterRequest):
 )
 async def save_skills(skills: SkillsCreate, session: Session = Depends(get_session)):
     try:
+        logger.info(f"Saving skills: {skills}")
         db_skills = Skills.model_validate(skills)
         session.add(db_skills)
         session.commit()
         session.refresh(db_skills)
+        logger.info(f"Successfully saved skills with ID: {db_skills.id}")
         return ResponseModel(
             success=True,
             message="Lưu kỹ năng thành công",
             data=db_skills
         )
     except Exception as e:
+        logger.error(f"Error saving skills: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi lưu kỹ năng: {str(e)}"
@@ -258,12 +270,16 @@ async def get_skills(
     limit: int = 100
 ):
     try:
+        logger.info(f"Fetching skills with offset={offset} and limit={limit}")
         # Lấy tất cả kỹ năng với phân trang
         query = select(Skills).offset(offset).limit(limit)
         skills = session.exec(query).all()
+        logger.info(f"Found {len(skills)} skills")
         
         # Đếm tổng số bản ghi
-        total = session.exec(select(Skills)).count()
+        count_query = select(Skills)
+        total = len(session.exec(count_query).all())
+        logger.info(f"Total skills count: {total}")
         
         return PaginatedResponseModel(
             success=True,
@@ -274,6 +290,7 @@ async def get_skills(
             limit=limit
         )
     except Exception as e:
+        logger.error(f"Error fetching skills: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi lấy danh sách kỹ năng: {str(e)}"
@@ -390,6 +407,37 @@ async def get_experience(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi lấy danh sách kinh nghiệm: {str(e)}"
+        )
+
+@app.delete("/api/experience/{experience_id}", 
+    status_code=status.HTTP_200_OK,
+    summary="Delete Experience",
+    description="Deletes a specific experience entry by ID",
+    tags=["Experience"]
+)
+async def delete_experience(experience_id: int, session: Session = Depends(get_session)):
+    try:
+        # Tìm experience theo ID
+        experience = session.get(Experience, experience_id)
+        if not experience:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Không tìm thấy kinh nghiệm với ID {experience_id}"
+            )
+        
+        # Xóa experience
+        session.delete(experience)
+        session.commit()
+        
+        return ResponseModel(
+            success=True,
+            message=f"Đã xóa kinh nghiệm với ID {experience_id} thành công",
+            data=None
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi khi xóa kinh nghiệm: {str(e)}"
         )
 
 @app.get("/api/cover-letters", 
@@ -582,6 +630,47 @@ def extract_info_from_cv(text_content: str, session: Session):
         }
         
         return extracted_data
+
+@app.put("/api/experience/{experience_id}", 
+    status_code=status.HTTP_200_OK,
+    response_model=ResponseModel[ExperienceRead],
+    summary="Update Experience",
+    description="Updates an existing experience entry by ID",
+    tags=["Experience"]
+)
+async def update_experience(
+    experience_id: int,
+    experience: ExperienceCreate,
+    session: Session = Depends(get_session)
+):
+    try:
+        # Tìm experience theo ID
+        db_experience = session.get(Experience, experience_id)
+        if not db_experience:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Không tìm thấy kinh nghiệm với ID {experience_id}"
+            )
+        
+        # Cập nhật thông tin
+        db_experience.work_experience = experience.work_experience
+        db_experience.projects = experience.projects
+        db_experience.updated_at = datetime.now()
+        
+        session.add(db_experience)
+        session.commit()
+        session.refresh(db_experience)
+        
+        return ResponseModel(
+            success=True,
+            message="Cập nhật kinh nghiệm thành công",
+            data=db_experience
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi khi cập nhật kinh nghiệm: {str(e)}"
+        )
 
 if __name__ == "__main__":
     import uvicorn
