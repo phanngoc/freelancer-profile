@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react';
-import { FaBriefcase, FaProjectDiagram, FaCheck, FaSave, FaPlus } from 'react-icons/fa';
+import { FaBriefcase, FaProjectDiagram, FaCheck, FaSave, FaPlus, FaTrash, FaEdit } from 'react-icons/fa';
 import { Spinner } from '../../components/Spinner';
 
 interface Experience {
@@ -19,6 +19,9 @@ export default function ExperiencePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [saveStatus, setSaveStatus] = useState<'success' | 'error' | null>(null);
+  const [isDeleting, setIsDeleting] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     fetchExperiences();
@@ -36,6 +39,20 @@ export default function ExperiencePage() {
     }
   };
 
+  const handleEdit = (exp: Experience) => {
+    setEditingId(exp.id);
+    setWorkExperience(exp.work_experience);
+    setProjects(exp.projects);
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setWorkExperience('');
+    setProjects('');
+    setIsEditing(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -43,8 +60,14 @@ export default function ExperiencePage() {
     setSaveStatus(null);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/experience`, {
-        method: 'POST',
+      const url = isEditing 
+        ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/experience/${editingId}`
+        : `${process.env.NEXT_PUBLIC_API_BASE_URL}/experience`;
+      
+      const method = isEditing ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -55,11 +78,13 @@ export default function ExperiencePage() {
       });
 
       if (response.ok) {
-        setSaveMessage('Đã lưu thông tin kinh nghiệm thành công!');
+        setSaveMessage(isEditing ? 'Đã cập nhật thông tin kinh nghiệm thành công!' : 'Đã lưu thông tin kinh nghiệm thành công!');
         setSaveStatus('success');
         setWorkExperience('');
         setProjects('');
-        fetchExperiences(); // Refresh danh sách sau khi thêm mới
+        setEditingId(null);
+        setIsEditing(false);
+        fetchExperiences();
         setTimeout(() => {
           setSaveMessage('');
           setSaveStatus(null);
@@ -78,9 +103,42 @@ export default function ExperiencePage() {
     }
   };
 
+  const handleDelete = async (id: number) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa kinh nghiệm này?')) {
+      return;
+    }
+
+    setIsDeleting(id);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/experience/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setSaveMessage('Đã xóa kinh nghiệm thành công!');
+        setSaveStatus('success');
+        fetchExperiences(); // Refresh danh sách sau khi xóa
+        setTimeout(() => {
+          setSaveMessage('');
+          setSaveStatus(null);
+        }, 3000);
+      } else {
+        const error = await response.json();
+        setSaveMessage(`Lỗi: ${error.detail || 'Không thể xóa kinh nghiệm'}`);
+        setSaveStatus('error');
+      }
+    } catch (error) {
+      setSaveMessage('Lỗi kết nối đến server');
+      setSaveStatus('error');
+      console.error('Lỗi khi xóa kinh nghiệm:', error);
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50">
-      <div className="max-w-4xl mx-auto px-6 py-12">
+      <div className="mx-auto px-3 py-5">
         <header className="mb-8">
           <div className="inline-block bg-teal-100 text-teal-600 px-3 py-1 rounded-full text-sm font-medium mb-3">
             Phát triển sự nghiệp
@@ -108,6 +166,9 @@ export default function ExperiencePage() {
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Cập nhật lần cuối
                   </th>
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Hành động
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -122,6 +183,32 @@ export default function ExperiencePage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(exp.updated_at).toLocaleDateString('vi-VN')}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                      <button
+                        onClick={() => handleEdit(exp)}
+                        className="text-blue-600 hover:text-blue-900"
+                      >
+                        <FaEdit className="inline-block mr-1" />
+                        Sửa
+                      </button>
+                      <button
+                        onClick={() => handleDelete(exp.id)}
+                        disabled={isDeleting === exp.id}
+                        className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isDeleting === exp.id ? (
+                          <>
+                            <Spinner size="small" color="primary" />
+                            <span className="ml-2">Đang xóa...</span>
+                          </>
+                        ) : (
+                          <>
+                            <FaTrash className="inline-block mr-1" />
+                            <span>Xóa</span>
+                          </>
+                        )}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -129,11 +216,11 @@ export default function ExperiencePage() {
           </div>
         </div>
         
-        {/* Form thêm mới */}
+        {/* Form thêm mới/chỉnh sửa */}
         <div className="bg-white rounded-xl p-8 shadow-sm">
           <h2 className="text-xl font-semibold text-gray-800 mb-6 flex items-center">
             <FaPlus className="mr-2 text-teal-500" />
-            Thêm kinh nghiệm mới
+            {isEditing ? 'Chỉnh sửa kinh nghiệm' : 'Thêm kinh nghiệm mới'}
           </h2>
           <form onSubmit={handleSubmit}>
             <div className="space-y-8">
@@ -180,9 +267,19 @@ export default function ExperiencePage() {
               </div>
             </div>
             
-            <div className="mt-8 flex justify-end items-center">
+            <div className="mt-8 flex justify-end items-center space-x-4">
+              {isEditing && (
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="px-5 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Hủy
+                </button>
+              )}
+              
               {saveMessage && (
-                <div className={`mr-4 px-4 py-2 rounded-lg ${
+                <div className={`px-4 py-2 rounded-lg ${
                   saveStatus === 'success' 
                     ? 'bg-green-50 text-green-600 border border-green-100' 
                     : 'bg-red-50 text-red-600 border border-red-100'
@@ -207,7 +304,7 @@ export default function ExperiencePage() {
                 ) : (
                   <>
                     <FaSave className="mr-2" />
-                    <span>Lưu thông tin</span>
+                    <span>{isEditing ? 'Cập nhật' : 'Lưu thông tin'}</span>
                   </>
                 )}
               </button>
