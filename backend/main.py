@@ -3,6 +3,7 @@ import tempfile
 import logging
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from typing import Optional, List, Generic, TypeVar, Dict, Any
@@ -16,9 +17,12 @@ from models import (
     Skills, SkillsCreate, SkillsRead,
     Experience, ExperienceCreate, ExperienceRead,
     CoverLetter, CoverLetterCreate, CoverLetterRead,
+    User, UserCreate, UserRead,
     get_session
 )
-from datetime import datetime
+from passlib.context import CryptContext
+from datetime import datetime, timedelta
+from jose import JWTError, jwt
 
 # Tải biến môi trường từ file .env
 load_dotenv()
@@ -99,6 +103,65 @@ class CoverLetterRequest(BaseModel):
 class CoverLetterResponse(BaseModel):
     cover_letter: str
 
+# Cấu hình JWT
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+# Cấu hình password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    username: Optional[str] = None
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)
+
+def authenticate_user(session: Session, username: str, password: str):
+    user = session.exec(select(User).where(User.username == username)).first()
+    if not user:
+        return False
+    if not verify_password(password, user.hashed_password):
+        return False
+    return user
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+async def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Không thể xác thực thông tin đăng nhập",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+        token_data = TokenData(username=username)
+    except JWTError:
+        raise credentials_exception
+    user = session.exec(select(User).where(User.username == token_data.username)).first()
+    if user is None:
+        raise credentials_exception
+    return user
+
 @app.get("/api", 
     summary="API Root Endpoint",
     description="Returns a welcome message to confirm the API is working",
@@ -166,40 +229,41 @@ async def init_sample_data(session: Session = Depends(get_session)):
 )
 async def generate_cover_letter(request: CoverLetterRequest):
     try:
-        # Tạo prompt cho OpenAI
         prompt = f"""
-        Viết một cover letter chuyên nghiệp dựa trên mô tả công việc sau:
-        
-        MÔ TẢ CÔNG VIỆC:
+        Bạn là một chuyên gia viết cover letter giúp freelancer chinh phục khách hàng tiềm năng.
+
+        Nhiệm vụ: Viết một cover letter chuyên nghiệp (khoảng 250-350 từ) cho freelancer ứng tuyển vào dự án có mô tả sau:
+
+        ## MÔ TẢ CÔNG VIỆC:
         {request.job_description}
-        
-        """
 
-        if request.freelancer_skills:
-            prompt += f"""
-            KỸ NĂNG CỦA FREELANCER:
-            {request.freelancer_skills}
-            """
+        ## KỸ NĂNG CỦA FREELANCER:
+        {request.freelancer_skills or 'Không có thông tin.'}
 
-        if request.experience_level:
-            prompt += f"""
-            MỨC KINH NGHIỆM:
-            {request.experience_level}
-            """
+        ## MỨC KINH NGHIỆM:
+        {request.experience_level or 'Không có thông tin.'}
 
-        if request.additional_info:
-            prompt += f"""
-            THÔNG TIN BỔ SUNG:
-            {request.additional_info}
-            """
+        ## THÔNG TIN BỔ SUNG:
+        {request.additional_info or 'Không có thông tin.'}
 
-        prompt += f"""
-        Giọng điệu: {request.tone}
-        
-        Hãy viết một cover letter chuyên nghiệp, ngắn gọn và thu hút người đọc. 
-        Cover letter nên kết nối kỹ năng của freelancer với yêu cầu công việc, 
-        thể hiện sự hiểu biết về dự án và chứng minh freelancer là người phù hợp nhất.
-        Hãy tránh những câu từ chung chung, thay vào đó hãy cụ thể và đi thẳng vào vấn đề.
+        ## YÊU CẦU VỀ COVER LETTER:
+        - Giọng điệu: {request.tone}
+        - Mở đầu thu hút sự chú ý (hook) bằng cách đề cập trực tiếp đến vấn đề hoặc mục tiêu của dự án.
+        - Liên kết cụ thể kỹ năng và kinh nghiệm của freelancer với yêu cầu công việc (nêu ví dụ thực tế nếu có).
+        - Thể hiện sự hiểu biết về dự án, lĩnh vực hoặc khách hàng mục tiêu.
+        - Kết thúc bằng lời kêu gọi hành động (CTA) mạnh mẽ, thúc đẩy khách hàng liên hệ.
+
+        ## CODE SAMPLE (bắt buộc có):
+        - Viết thêm 1 đoạn mã (10-20 dòng) minh họa cách freelancer sẽ giải quyết một yêu cầu kỹ thuật quan trọng trong dự án.
+        - Đoạn mã nên rõ ràng, ngắn gọn, dễ hiểu và có chú thích giải thích ý tưởng chính.
+        - Ngôn ngữ lập trình phù hợp với yêu cầu dự án hoặc kỹ năng của freelancer.
+
+        ## LƯU Ý QUAN TRỌNG:
+        - Không dùng những câu từ sáo rỗng hoặc chung chung như "Tôi là người làm việc chăm chỉ", "Tôi đam mê công việc này".  
+        - Chỉ trình bày những nội dung cụ thể, có liên hệ rõ ràng đến dự án.
+        - Không cần chào hỏi hoặc ký tên cuối thư.
+
+        Bắt đầu viết ngay bây giờ.
         """
 
         # Gọi API OpenAI
@@ -303,7 +367,11 @@ async def get_skills(
     description="Saves a freelancer's work experience and project history to the database",
     tags=["Experience"]
 )
-async def save_experience(experience: ExperienceCreate, session: Session = Depends(get_session)):
+async def save_experience(
+    experience: ExperienceCreate, 
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
     try:
         db_experience = Experience.model_validate(experience)
         session.add(db_experience)
@@ -671,6 +739,73 @@ async def update_experience(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi cập nhật kinh nghiệm: {str(e)}"
         )
+
+@app.post("/api/register", response_model=ResponseModel[UserRead])
+async def register(user: UserCreate, session: Session = Depends(get_session)):
+    try:
+        # Kiểm tra username đã tồn tại
+        db_user = session.exec(select(User).where(User.username == user.username)).first()
+        if db_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username đã tồn tại"
+            )
+        
+        # Kiểm tra email đã tồn tại
+        db_user = session.exec(select(User).where(User.email == user.email)).first()
+        if db_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email đã tồn tại"
+            )
+        
+        # Tạo user mới
+        hashed_password = get_password_hash(user.password)
+        db_user = User(
+            email=user.email,
+            username=user.username,
+            hashed_password=hashed_password
+        )
+        session.add(db_user)
+        session.commit()
+        session.refresh(db_user)
+        
+        return ResponseModel(
+            success=True,
+            message="Đăng ký thành công",
+            data=db_user
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi khi đăng ký: {str(e)}"
+        )
+
+@app.post("/api/token", response_model=Token)
+async def login_for_access_token(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    session: Session = Depends(get_session)
+):
+    user = authenticate_user(session, form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Tên đăng nhập hoặc mật khẩu không đúng",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.get("/api/users/me", response_model=ResponseModel[UserRead])
+async def read_users_me(current_user: User = Depends(get_current_user)):
+    return ResponseModel(
+        success=True,
+        message="Lấy thông tin người dùng thành công",
+        data=current_user
+    )
 
 if __name__ == "__main__":
     import uvicorn
