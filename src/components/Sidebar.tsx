@@ -3,7 +3,8 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FaFileAlt, FaTools, FaBriefcase, FaUpload } from 'react-icons/fa';
+import { FaFileAlt, FaTools, FaBriefcase, FaUpload, FaUser } from 'react-icons/fa';
+import { useAuth } from '@/hooks/useAuth';
 
 interface NavItemProps {
   href: string;
@@ -31,6 +32,7 @@ const NavItem: React.FC<NavItemProps> = ({ href, text, icon, active }) => {
 
 const Sidebar: React.FC = () => {
   const pathname = usePathname();
+  const { user } = useAuth();
 
   const navItems = [
     { href: '/', text: 'Cover Letter', icon: <FaFileAlt /> },
@@ -46,6 +48,19 @@ const Sidebar: React.FC = () => {
           <span className="bg-teal-500 w-8 h-8 rounded-md text-white flex items-center justify-center mr-3">F</span>
           Freelancer
         </h2>
+        {user && (
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center">
+              <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center text-teal-600">
+                <FaUser size={20} />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-gray-900">{user.username}</p>
+                <p className="text-xs text-gray-500">{user.email}</p>
+              </div>
+            </div>
+          </div>
+        )}
         <nav>
           {navItems.map((item) => (
             <NavItem

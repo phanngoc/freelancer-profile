@@ -4,6 +4,7 @@ from models import (
     Skills, SkillsCreate, 
     Experience, ExperienceCreate,
     CoverLetter, CoverLetterCreate,
+    User,
     engine
 )
 

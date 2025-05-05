@@ -2,6 +2,7 @@ from typing import Optional, List, Union, Any
 from datetime import datetime
 from sqlmodel import Field, SQLModel, Relationship, create_engine, Session
 import json
+from pydantic import EmailStr
 
 
 class SkillsBase(SQLModel):
@@ -67,6 +68,35 @@ class CoverLetterCreate(CoverLetterBase):
 class CoverLetterRead(CoverLetterBase):
     id: int
     created_at: datetime
+
+
+class UserBase(SQLModel):
+    email: EmailStr
+    username: str
+    hashed_password: str
+    is_active: bool = True
+    is_superuser: bool = False
+
+
+class User(UserBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+
+class UserCreate(SQLModel):
+    email: EmailStr
+    username: str
+    password: str
+
+
+class UserRead(SQLModel):
+    id: int
+    email: EmailStr
+    username: str
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
 
 
 # Thiết lập kết nối database
